@@ -5,7 +5,6 @@ import (
 	"api/response"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -30,8 +29,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred when converting user to struct"))
 		return
 	}
-
-	fmt.Println(user)
 
 	db, err := database.Connection()
 	if err != nil {
@@ -64,4 +61,44 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user.ID = uint32(lastId)
 	response.JSON(w, http.StatusCreated, user)
+}
+
+//GetUsers get all users
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	db, err := database.Connection()
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while connecting to database"))
+		return
+	}
+
+	defer db.Close()
+
+	var sql string = "SELECT * FROM users ORDER BY id DESC"
+
+	lines, err := db.Query(sql)
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while fetching users"))
+		return
+	}
+
+	defer lines.Close()
+
+	var users []user
+
+	for lines.Next() {
+		var user user
+
+		if err := lines.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+			response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while scaning user"))
+			return
+		}
+		users = append(users, user)
+	}
+
+	response.JSON(w, http.StatusOK, users)
+}
+
+//GetUser get user
+func GetUser(w http.ResponseWriter, r *http.Request) {
+
 }
