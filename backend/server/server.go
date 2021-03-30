@@ -7,6 +7,9 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type user struct {
@@ -100,5 +103,41 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 //GetUser get user
 func GetUser(w http.ResponseWriter, r *http.Request) {
+	parameters := mux.Vars(r)
 
+	id, err := strconv.ParseUint(parameters["id"], 10, 32)
+	if err != nil {
+		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred while converting ID"))
+		return
+	}
+
+	db, err := database.Connection()
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while connecting to database"))
+		return
+	}
+
+	defer db.Close()
+
+	var sql string = "SELECT * FROM users WHERE id = ?"
+
+	line, err := db.Query(sql, id)
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while fetching user"))
+		return
+	}
+
+	var user user
+	if line.Next() {
+		if err := line.Scan(&user.ID, &user.Name, &user.Email); err != nil {
+			response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while scaning user"))
+			return
+		}
+	}
+
+	if user.ID == 0 {
+		response.JSON(w, http.StatusOK, "there is no user with this id")
+		return
+	}
+	response.JSON(w, http.StatusOK, user)
 }
