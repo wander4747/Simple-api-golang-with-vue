@@ -141,3 +141,51 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, http.StatusOK, user)
 }
+
+// UpdateUser update user
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	parameters := mux.Vars(r)
+
+	id, err := strconv.ParseUint(parameters["id"], 10, 32)
+	if err != nil {
+		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred while converting ID"))
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred while reading the request body"))
+		return
+	}
+
+	var user user
+	if err = json.Unmarshal(body, &user); err != nil {
+		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred when converting user to struct"))
+		return
+	}
+
+	db, err := database.Connection()
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while connecting to database"))
+		return
+	}
+
+	defer db.Close()
+
+	var sql string = "UPDATE users SET name = ?, email = ? WHERE id = ?"
+	statement, err := db.Prepare(sql)
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while creating statement"))
+		return
+	}
+
+	defer statement.Close()
+
+	if _, err := statement.Exec(user.Name, user.Email, id); err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while update user"))
+		return
+	}
+
+	response.JSON(w, http.StatusNoContent, nil)
+}
