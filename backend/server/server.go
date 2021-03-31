@@ -189,3 +189,38 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	response.JSON(w, http.StatusNoContent, nil)
 }
+
+// DeleteUser update user
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	parameters := mux.Vars(r)
+
+	id, err := strconv.ParseUint(parameters["id"], 10, 32)
+	if err != nil {
+		response.Erro(w, http.StatusUnprocessableEntity, errors.New("an error occurred while converting ID"))
+		return
+	}
+
+	db, err := database.Connection()
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while connecting to database"))
+		return
+	}
+
+	defer db.Close()
+
+	var sql string = "DELETE FROM users WHERE id = ?"
+	statement, err := db.Prepare(sql)
+	if err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while creating statement"))
+		return
+	}
+
+	defer statement.Close()
+
+	if _, err := statement.Exec(id); err != nil {
+		response.Erro(w, http.StatusInternalServerError, errors.New("an error occurred while delete user"))
+		return
+	}
+
+	response.JSON(w, http.StatusNoContent, nil)
+}
